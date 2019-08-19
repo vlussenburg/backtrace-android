@@ -1,4 +1,85 @@
 apply plugin: 'com.android.application'
+//apply plugin: 'com.android.library'
+
+//import com.android.*
+//import com.android
+import org.apache.http.entity.mime.*
+import org.apache.http.client.methods.*
+import org.apache.http.impl.client.*
+import org.apache.http.entity.mime.content.*
+
+class BacktracePluginExtension {
+    String url = 'https://backtrace.io/'
+    String token = 'Token'
+    String uuid = null
+    String manifestPath = null
+    boolean autoUpload = false
+}
+
+class BacktracePlugin implements Plugin<Project> {
+    void apply(Project project) {
+        // Add the 'greeting' extension object
+        def extension = project.extensions.create('backtraceExtension', BacktracePluginExtension)
+        // Add a task that uses configuration from the extension object
+        project.task('backtrace') {
+            doLast {
+                println extension.url
+                println extension.token
+            }
+        }
+
+        def id = BacktracePlugin.generateUUID() // TODO: handle passed from parameters
+
+
+        project.task('printMappingFile') {
+//            def manifest = new XmlSlurper().parse(file("AndroidManifest.xml"))
+
+// returns "com.exmaple.your.app"
+//            println manifest.@package.text()
+            project.android.applicationVariants.all { variant ->
+
+                // printing the name of each variant
+                println variant.name
+
+                // checking for mapping file and printing the absolute path
+                if (variant.mappingFile != null && variant.mappingFile.exists()) {
+                    println variant.mappingFile.absolutePath
+                }
+            }
+        }
+    }
+
+    static String generateUUID(){
+        def id = UUID.randomUUID().toString()
+        println "Generated identifier: ${id}"
+        return id
+    }
+
+    static void uploadMapping(url, uuid, mappingFilePath){
+            if (mappingFilePath != null && mappingFilePath.exists()) {
+                def mpEntity = new MultipartEntity()
+                mpEntity.addPart("mappingFile", new FileBody(mappingFilePath))
+//                mpEntity.addPart("variantName", new StringBody(variant.name))
+//                mpEntity.addPart("versionName", new StringBody(variant.versionName))
+//                mpEntity.addPart("versionCode", new StringBody(variant.versionCode))
+                mpEntity.addPart("appId", new StringBody(uuid))
+
+
+                def httpPost = new HttpPost(url)
+                httpPost.setEntity(mpEntity)
+
+                def httpClient = new DefaultHttpClient()
+                def response = httpClient.execute(httpPost)
+            }
+    }
+}
+
+
+// Configure the extension
+//backtrace {
+//}
+///////////////////////////////////////////////////////
+
 
 android {
     compileSdkVersion 28
@@ -13,11 +94,13 @@ android {
     }
     buildTypes {
         release {
-            minifyEnabled false
+            minifyEnabled true
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
     buildToolsVersion '28.0.3'
+    apply plugin: BacktracePlugin
+
 }
 
 dependencies {

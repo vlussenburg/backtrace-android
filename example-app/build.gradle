@@ -13,7 +13,9 @@ class BacktracePluginExtension {
     String token = 'Token'
     String uuid = null
     String manifestPath = null
+    String mappingFilePath = null
     boolean autoUpload = false
+    boolean overwriteIdentifier = true
 }
 
 class BacktracePlugin implements Plugin<Project> {
@@ -28,7 +30,7 @@ class BacktracePlugin implements Plugin<Project> {
             }
         }
 
-        def id = BacktracePlugin.generateUUID() // TODO: handle passed from parameters
+
 
 
         project.task('printMappingFile') {
@@ -45,8 +47,59 @@ class BacktracePlugin implements Plugin<Project> {
                 if (variant.mappingFile != null && variant.mappingFile.exists()) {
                     println variant.mappingFile.absolutePath
                 }
+                variant.outputs.each { output ->
+                    def manifestDir = output.processManifest.manifestOutputDirectory
+                    def srcManifestFile = "$manifestDir/AndroidManifest.xml"
+                    def buildIdentifier = generateUUID() // TODO: handle passed from parameters
+
+                    modifyManifestFile(srcManifestFile, buildIdentifier)
+//                    TODO: uncomment
+//                    output.processManifest.doLast {
+//                        def manifestDir = output.processManifest.manifestOutputDirectory
+//                        println manifestDir
+//                        def srcManifestFile = "$manifestDir/AndroidManifest.xml"
+//                    }
+
+
+
+//                    def processorTask = output.processManifestProvider.getOrNull()
+//                    processorTask.doLast { task ->
+//                        def directory = task.getBundleManifestOutputDirectory()
+//                        println directory
+////                        def srcManifestFile = "$directory/AndroidManifest.xml"
+////                        def manifestContent = new File(srcManifestFile).getText()
+////                        def xml = new XmlParser(false, false).parseText(manifestContent)
+////
+////                        xml.application[0].appendNode("meta-data", ['android:name': 'channelId', 'android:value': '\\' + channelId])
+////
+////                        def serializeContent = groovy.xml.XmlUtil.serialize(xml)
+////                        def buildType = getPluginBuildType(project)
+////                        new File("${project.buildDir}/intermediates/merged_manifests/$buildType/AndroidManifest.xml").write(serializeContent)
+//                    }
+//                }
+                }
             }
         }
+    }
+
+    static void modifyManifestFile(String manifestPath, String buildIdentifier){
+        println manifestPath
+        def metaDataIdentifier = "backtraceBuildIdentifier"
+        def manifestContent = new File(manifestPath).getText()
+        def xml = new XmlParser(false, false).parseText(manifestContent)
+
+        def buildIdentifierExists = !xml.application[0]["meta-data"]["@android:name=$metaDataIdentifier"].isEmpty()
+        if (buildIdentifierExists){ // TODO: add if exists and overwrite
+            def node = xml.application[0]["meta-data"].find()
+            def parent = node.parent()
+            parent.remove(node)
+            println "IDENTIFIER EXISTS"
+        }
+
+        xml.application[0].appendNode("meta-data", ['android:name': metaDataIdentifier, 'android:value': buildIdentifier])
+        def serializeContent = groovy.xml.XmlUtil.serialize(xml)
+        new File(manifestPath).write(serializeContent)
+        println "WAT !!"
     }
 
     static String generateUUID(){
@@ -55,7 +108,7 @@ class BacktracePlugin implements Plugin<Project> {
         return id
     }
 
-    static void uploadMapping(url, uuid, mappingFilePath){
+/*    static void uploadMapping(url, uuid, mappingFilePath){
             if (mappingFilePath != null && mappingFilePath.exists()) {
                 def mpEntity = new MultipartEntity()
                 mpEntity.addPart("mappingFile", new FileBody(mappingFilePath))
@@ -71,7 +124,7 @@ class BacktracePlugin implements Plugin<Project> {
                 def httpClient = new DefaultHttpClient()
                 def response = httpClient.execute(httpPost)
             }
-    }
+    }*/
 }
 
 
@@ -94,8 +147,8 @@ android {
     }
     buildTypes {
         release {
-            minifyEnabled true
-            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+//            minifyEnabled true
+//            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
     buildToolsVersion '28.0.3'

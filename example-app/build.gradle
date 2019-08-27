@@ -30,6 +30,10 @@ class BacktracePlugin implements Plugin<Project> {
             }
         }
 
+        project.task('generateBuildIdentifier') {
+
+        }
+
 
 
 
@@ -48,17 +52,18 @@ class BacktracePlugin implements Plugin<Project> {
                     println variant.mappingFile.absolutePath
                 }
                 variant.outputs.each { output ->
-                    def manifestDir = output.processManifest.manifestOutputDirectory
-                    def srcManifestFile = "$manifestDir/AndroidManifest.xml"
+//                    def manifestDir = output.processManifest.manifestOutputDirectory
+//                    def srcManifestFile = "$manifestDir/AndroidManifest.xml"
                     def buildIdentifier = generateUUID() // TODO: handle passed from parameters
 
-                    modifyManifestFile(srcManifestFile, buildIdentifier)
+//                    modifyManifestFile(srcManifestFile, buildIdentifier)
 //                    TODO: uncomment
-//                    output.processManifest.doLast {
-//                        def manifestDir = output.processManifest.manifestOutputDirectory
-//                        println manifestDir
-//                        def srcManifestFile = "$manifestDir/AndroidManifest.xml"
-//                    }
+                    output.processManifest.doLast {
+                        def manifestDir = output.processManifest.manifestOutputDirectory
+                        println manifestDir
+                        def srcManifestFile = "$manifestDir/AndroidManifest.xml"
+                        modifyManifestFile(srcManifestFile, buildIdentifier)
+                    }
 
 
 

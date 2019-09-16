@@ -1,16 +1,20 @@
 package backtraceio.library.common;
 
 import android.annotation.SuppressLint;
+import android.app.Activity;
 import android.app.ActivityManager;
 import android.bluetooth.BluetoothAdapter;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.pm.ApplicationInfo;
+import android.content.pm.PackageManager;
 import android.location.LocationManager;
 import android.net.wifi.WifiManager;
 import android.nfc.NfcAdapter;
 import android.os.BatteryManager;
 import android.os.Build;
+import android.os.Bundle;
 import android.os.PowerManager;
 import android.provider.Settings;
 import android.text.TextUtils;
@@ -20,12 +24,14 @@ import java.io.InputStreamReader;
 import java.util.HashMap;
 import java.util.UUID;
 
+import backtraceio.library.BacktraceDatabase;
 import backtraceio.library.enums.BatteryState;
 import backtraceio.library.enums.BluetoothStatus;
 import backtraceio.library.enums.GpsStatus;
 import backtraceio.library.enums.LocationStatus;
 import backtraceio.library.enums.NfcStatus;
 import backtraceio.library.enums.WifiStatus;
+import backtraceio.library.logger.BacktraceLogger;
 
 import static android.content.Context.ACTIVITY_SERVICE;
 
@@ -34,6 +40,8 @@ import static android.content.Context.ACTIVITY_SERVICE;
  */
 public class DeviceAttributesHelper {
     private Context context;
+    private static final String BUILD_IDENTIFIER = "backtraceBuildIdentifier";
+    private transient final String LOG_TAG = DeviceAttributesHelper.class.getSimpleName();
 
     public DeviceAttributesHelper(Context context) {
         this.context = context;
@@ -65,6 +73,13 @@ public class DeviceAttributesHelper {
         result.put("app.storage_used", getAppUsedStorageSize());
         result.put("battery.level", getBatteryLevel());
         result.put("battery.state", getBatteryState().toString());
+
+        String symbolicationBuildId = getSymbolicationIdentifier();
+        if (symbolicationBuildId != null && !symbolicationBuildId.isEmpty())
+        {
+            result.put("symbolication_id", symbolicationBuildId);
+            result.put("symbolication", "proguard");
+        }
         return result;
     }
 
@@ -297,5 +312,17 @@ public class DeviceAttributesHelper {
             e.printStackTrace();
         }
         return Long.toString(usedSize);
+    }
+
+    private String getSymbolicationIdentifier() {
+        try {
+            ApplicationInfo applicationInfo = this.context.getPackageManager().getApplicationInfo(this.context.getPackageName(), PackageManager.GET_META_DATA);
+            Bundle bundle = applicationInfo.metaData;
+            return bundle.getString(BUILD_IDENTIFIER);
+        }
+        catch (PackageManager.NameNotFoundException exception){
+            BacktraceLogger.e(LOG_TAG, "", exception); // TODO: change message!
+            return null;
+        }
     }
 }

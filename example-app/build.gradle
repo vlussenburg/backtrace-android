@@ -1,21 +1,17 @@
 apply plugin: 'com.android.application'
-//apply plugin: 'com.android.library'
 
-//import com.android.*
-//import com.android
-import org.apache.http.entity.mime.*
-import org.apache.http.client.methods.*
-import org.apache.http.impl.client.*
-import org.apache.http.entity.mime.content.*
 
 class BacktracePluginExtension {
     String url = 'https://backtrace.io/'
-    String token = 'Token'
+    String token = null
     String uuid = null
+    String universe = null
+    String format = "proguard"
     String manifestPath = null
     String mappingFilePath = null
     boolean autoUpload = false
     boolean overwriteIdentifier = true
+    boolean overwriteMappingFile = true
 }
 
 class BacktracePlugin implements Plugin<Project> {
@@ -63,6 +59,9 @@ class BacktracePlugin implements Plugin<Project> {
                         println manifestDir
                         def srcManifestFile = "$manifestDir/AndroidManifest.xml"
                         modifyManifestFile(srcManifestFile, buildIdentifier)
+                        println "modifyManifestFile - Done"
+                        uploadMapping(url, buildIdentifier, srcManifestFile)
+                        println "uploadMapping - Done"
                     }
 
 
@@ -98,13 +97,13 @@ class BacktracePlugin implements Plugin<Project> {
             def node = xml.application[0]["meta-data"].find()
             def parent = node.parent()
             parent.remove(node)
-            println "IDENTIFIER EXISTS"
+            println "Identifier exists"
         }
 
         xml.application[0].appendNode("meta-data", ['android:name': metaDataIdentifier, 'android:value': buildIdentifier])
         def serializeContent = groovy.xml.XmlUtil.serialize(xml)
         new File(manifestPath).write(serializeContent)
-        println "WAT !!"
+        println "Modifying manifest file complete!"
     }
 
     static String generateUUID(){
@@ -113,23 +112,34 @@ class BacktracePlugin implements Plugin<Project> {
         return id
     }
 
-/*    static void uploadMapping(url, uuid, mappingFilePath){
-            if (mappingFilePath != null && mappingFilePath.exists()) {
-                def mpEntity = new MultipartEntity()
-                mpEntity.addPart("mappingFile", new FileBody(mappingFilePath))
-//                mpEntity.addPart("variantName", new StringBody(variant.name))
-//                mpEntity.addPart("versionName", new StringBody(variant.versionName))
-//                mpEntity.addPart("versionCode", new StringBody(variant.versionCode))
-                mpEntity.addPart("appId", new StringBody(uuid))
+    static void uploadMapping(url, uuid, mappingFilePath){
+        println "Start uploading mapping.."
+        url = "${url}post?format=android-library&symbolication_id=" + uuid
+        url = "${url}post?format=proguard&symbolication_id=${uuid}&token=5be39ab2da5c4a250119dee01b3c3c1b61d2c8ea61a48e946902afe16620723d&universe=yolo&project=android-library"
+        println url
+            if (mappingFilePath != null && !mappingFilePath.isEmpty()) {
+                File file = new File(mappingFilePath)
+                println mappingFilePath
+                // TODO: Add check if file exists
 
+                def post = new URL(url).openConnection();
+                post.setRequestMethod("POST")
+                post.setDoOutput(true)
+                post.setRequestProperty("Content-Type", "application/json")
+                post.getOutputStream().write(file.getBytes())
+                println("Sending request..")
+                def postRC = post.getResponseCode()
+                println("Response..")
 
-                def httpPost = new HttpPost(url)
-                httpPost.setEntity(mpEntity)
-
-                def httpClient = new DefaultHttpClient()
-                def response = httpClient.execute(httpPost)
+                println(postRC);
+                if(postRC.equals(200)) {
+                    println(post.getInputStream().getText());
+                }
+                else{
+                    println(post.getErrorStream().getText())
+                }
             }
-    }*/
+    }
 }
 
 
@@ -152,8 +162,8 @@ android {
     }
     buildTypes {
         release {
-//            minifyEnabled true
-//            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            minifyEnabled true
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
     buildToolsVersion '28.0.3'

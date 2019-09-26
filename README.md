@@ -52,7 +52,8 @@ catch (e: Exception) {
 4. [Installation](#installation)
 5. [Running sample application](#sample-app)
 6. [Using Backtrace library](#using-backtrace)
-7. [Documentation](#documentation)
+7. [ProGuard support](#proguard)
+8. [Documentation](#documentation)
 
 
 # Features Summary <a name="features-summary"></a>
@@ -343,6 +344,15 @@ watchdog.checkIsAnyThreadIsBlocked(); // check if any thread has exceeded the ti
 
 // The following code should be executed inside the thread you want to monitor
 watchdog.tick(this); // In your custom thread class make incrementation to inform that the thread is not blocked
+```
+
+# ProGuard support <a name="proguard"></a>
+
+For proper working library with ProGuard add following lines to file `proguard-rules.pro`
+
+```
+-keep class com.google.gson.** { *; }
+-keep class backtraceio.library.** { *; }
 ```
 
 # Documentation  <a name="documentation"></a>

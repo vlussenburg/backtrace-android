@@ -14,10 +14,26 @@ class BacktracePluginExtension {
     boolean overwriteMappingFile = true
 }
 
+class Backtrace2Plugin implements Plugin<Project> {
+    void apply(Project project) {
+        def extension = project.extensions.create('backtrace', BacktracePluginExtension)
+    }
+
+    static void removeMergedManifest(String path){
+
+    }
+
+    static void modifyManifestFile(String manifestFilePath){
+
+    }
+
+
+}
+
 class BacktracePlugin implements Plugin<Project> {
     void apply(Project project) {
         // Add the 'greeting' extension object
-        def extension = project.extensions.create('backtraceExtension', BacktracePluginExtension)
+        def extension = project.extensions.create('backtrace', BacktracePluginExtension)
         // Add a task that uses configuration from the extension object
         project.task('backtrace') {
             doLast {
@@ -60,6 +76,8 @@ class BacktracePlugin implements Plugin<Project> {
                         def srcManifestFile = "$manifestDir/AndroidManifest.xml"
                         modifyManifestFile(srcManifestFile, buildIdentifier)
                         println "modifyManifestFile - Done"
+                        def url = "https://yolo.sp.backtrace.io:6098/"
+
                         uploadMapping(url, buildIdentifier, srcManifestFile)
                         println "uploadMapping - Done"
                     }
@@ -114,9 +132,12 @@ class BacktracePlugin implements Plugin<Project> {
 
     static void uploadMapping(url, uuid, mappingFilePath){
         println "Start uploading mapping.."
-        url = "${url}post?format=android-library&symbolication_id=" + uuid
-        url = "${url}post?format=proguard&symbolication_id=${uuid}&token=5be39ab2da5c4a250119dee01b3c3c1b61d2c8ea61a48e946902afe16620723d&universe=yolo&project=android-library"
+//        url = "${url}post?format=android-library&symbolication_id=" + uuid
+
+        url = "${url}post?format=proguard&symbolication_id=${uuid}&token=${token}&universe=yolo&project=android-library"
         println url
+        return
+        println uuid
             if (mappingFilePath != null && !mappingFilePath.isEmpty()) {
                 File file = new File(mappingFilePath)
                 println mappingFilePath
@@ -144,8 +165,7 @@ class BacktracePlugin implements Plugin<Project> {
 
 
 // Configure the extension
-//backtrace {
-//}
+
 ///////////////////////////////////////////////////////
 
 
@@ -161,6 +181,11 @@ android {
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
     }
     buildTypes {
+        debug {
+//            minifyEnabled true
+//            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+//            zipAlignEnabled true
+        }
         release {
             minifyEnabled true
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
@@ -168,7 +193,12 @@ android {
     }
     buildToolsVersion '28.0.3'
     apply plugin: BacktracePlugin
+    backtrace {
+        universe = 'yolo'
+        projectName = 'android-library'
+        format = 'proguard'
 
+    }
 }
 
 dependencies {

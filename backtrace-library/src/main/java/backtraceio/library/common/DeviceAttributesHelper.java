@@ -40,7 +40,7 @@ import static android.content.Context.ACTIVITY_SERVICE;
  */
 public class DeviceAttributesHelper {
     private Context context;
-    private static final String BUILD_IDENTIFIER = "backtraceBuildIdentifier";
+    private static final String BUILD_IDENTIFIER = "backtrace.io.build.id";
     private transient final String LOG_TAG = DeviceAttributesHelper.class.getSimpleName();
 
     public DeviceAttributesHelper(Context context) {

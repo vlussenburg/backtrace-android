@@ -3,34 +3,142 @@ apply plugin: 'com.android.application'
 
 class BacktracePluginExtension {
     String url = 'https://backtrace.io/'
-    String token = null
-    String uuid = null
-    String universe = null
+    String token
+    String uuid
+    String universe
+    String projectName
     String format = "proguard"
-    String manifestPath = null
-    String mappingFilePath = null
-    boolean autoUpload = false
+    String manifestPath
+    String mappingFilePath
+    boolean autoUpload
     boolean overwriteIdentifier = true
     boolean overwriteMappingFile = true
 }
 
-class Backtrace2Plugin implements Plugin<Project> {
+class BacktracePlugin implements Plugin<Project> {
     void apply(Project project) {
-        def extension = project.extensions.create('backtrace', BacktracePluginExtension)
+        BacktracePluginExtension extension = project.extensions.create('backtrace', BacktracePluginExtension)
+        project.android.applicationVariants.all { variant ->
+            println variant.name
+
+            variant.outputs.each { output ->
+                println 'A'
+                println output
+//                println variant.mappingFile.absolutePath
+
+//                println variant.mappingFile
+                println 'B'
+                def buildIdentifier = validateBuildIdentifier(extension.uuid) ? extension.uuid : generateBuildIdentifier()
+
+                output.processManifest.doFirst {
+                    def srcManifestFile = "$output.processManifest.manifestOutputDirectory/AndroidManifest.xml"
+                    removeMergedManifest(srcManifestFile)
+                }
+                output.processManifest.doLast {
+                    def srcManifestFile = "$output.processManifest.manifestOutputDirectory/AndroidManifest.xml"
+                    modifyManifestFile(srcManifestFile, buildIdentifier)
+                }
+
+                variant.assemble.doLast {
+                    if ( variant.mappingFile != null &&
+                            variant.mappingFile.exists() ) {
+                        println 'there is mapping file!'
+                        println variant.mappingFile.absolutePath
+                    }
+                    else {
+                        println 'mapping file doesnt exist'
+                    }
+                    println "Hello World! End. ${variant.name}"
+                }
+//                tasks.register("hello") {
+//                    doLast {
+//                        println 'Hello, World!'
+//                        println buildIdentifier
+//                    }
+//                }
+            }
+        }
     }
 
     static void removeMergedManifest(String path){
-
+        println 'REMOVE MERGED MANIFEST'
+        File file = new File(path)
+        if (file.exists()){
+            println 'Manifest file already exists'
+            file.delete()
+        }
+        else {
+            println 'Manifest file doesn\'t exists'
+        }
     }
 
-    static void modifyManifestFile(String manifestFilePath){
-
+    static validateBuildIdentifier(String passedUUID){
+//        Add validation
+        return false
     }
 
+    static String generateBuildIdentifier(){
+        def id = UUID.randomUUID().toString()
+        println "Generated identifier: ${id}"
+        return id
+    }
+
+
+    static void modifyManifestFile(String manifestFilePath, String buildIdentifier){
+        println manifestFilePath
+        def metaDataIdentifier = "backtrace.io.build.id"
+        def manifestContent = new File(manifestFilePath).getText()
+        def xml = new XmlParser(false, false).parseText(manifestContent)
+
+        def buildIdentifierExists = !xml.application[0]["meta-data"]["@android:name=$metaDataIdentifier"].isEmpty()
+        if (buildIdentifierExists){ // TODO: add if exists and overwrite
+            def node = xml.application[0]["meta-data"].find()
+            def parent = node.parent()
+            parent.remove(node)
+            println "Identifier exists"
+        }
+
+        xml.application[0].appendNode("meta-data", ['android:name': metaDataIdentifier, 'android:value': buildIdentifier])
+        def serializeContent = groovy.xml.XmlUtil.serialize(xml)
+        new File(manifestFilePath).write(serializeContent)
+        println "Modifying manifest file complete!"
+    }
+
+    static void uploadMapping(url, uuid, format, mappingFilePath, token, universe, projectName){
+        println "Start uploading mapping.."
+        url = "${url}post?format=${format}&symbolication_id=${uuid}&token=${token}&universe=${universe}&project=${projectName}"
+        println url
+        return
+        println uuid
+        if (mappingFilePath != null && !mappingFilePath.isEmpty()) {
+            File file = new File(mappingFilePath)
+            println mappingFilePath
+            // TODO: Add check if file exists
+
+            def post = new URL(url).openConnection();
+            post.setRequestMethod("POST")
+            post.setDoOutput(true)
+            post.setRequestProperty("Content-Type", "application/json")
+            post.getOutputStream().write(file.getBytes())
+            println("Sending request..")
+            def postRC = post.getResponseCode()
+            println("Response..")
+
+            println(postRC);
+            if(postRC.equals(200)) {
+                println(post.getInputStream().getText());
+            }
+            else{
+                println(post.getErrorStream().getText())
+            }
+        }
+    }
 
 }
 
-class BacktracePlugin implements Plugin<Project> {
+//////////////////////////////////////////////////////////////////////////////////////////////////
+
+class Backtrace2Plugin implements Plugin<Project> {
     void apply(Project project) {
         // Add the 'greeting' extension object
         def extension = project.extensions.create('backtrace', BacktracePluginExtension)
@@ -119,7 +227,7 @@ class BacktracePlugin implements Plugin<Project> {
         }
 
         xml.application[0].appendNode("meta-data", ['android:name': metaDataIdentifier, 'android:value': buildIdentifier])
-        def serializeContent = groovy.xml.XmlUtil.serialize(xml)
+        def serializeContent = xml.XmlUtil.serialize(xml)
         new File(manifestPath).write(serializeContent)
         println "Modifying manifest file complete!"
     }
@@ -133,7 +241,7 @@ class BacktracePlugin implements Plugin<Project> {
     static void uploadMapping(url, uuid, mappingFilePath){
         println "Start uploading mapping.."
 //        url = "${url}post?format=android-library&symbolication_id=" + uuid
-
+        def token = 'x'
         url = "${url}post?format=proguard&symbolication_id=${uuid}&token=${token}&universe=yolo&project=android-library"
         println url
         return
@@ -197,7 +305,7 @@ android {
         universe = 'yolo'
         projectName = 'android-library'
         format = 'proguard'
-
+        token = '2x'
     }
 }
 
